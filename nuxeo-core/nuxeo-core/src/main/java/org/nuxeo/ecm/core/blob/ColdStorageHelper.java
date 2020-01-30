@@ -22,6 +22,7 @@ package org.nuxeo.ecm.core.blob;
 import static javax.servlet.http.HttpServletResponse.*;
 
 import java.io.Serializable;
+import java.util.HashMap;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,7 +30,6 @@ import org.nuxeo.ecm.core.api.*;
 import org.nuxeo.ecm.core.event.Event;
 import org.nuxeo.ecm.core.event.EventService;
 import org.nuxeo.ecm.core.event.impl.DocumentEventContext;
-import org.nuxeo.ecm.core.api.*;
 import org.nuxeo.ecm.core.schema.FacetNames;
 import org.nuxeo.runtime.api.Framework;
 
@@ -52,6 +52,15 @@ public class ColdStorageHelper {
             "SELECT * FROM Document, Relation WHERE %s = 1", COLD_STORAGE_BEING_RETRIEVED_PROPERTY);
 
     public static final String COLD_STORAGE_CONTENT_AVAILABLE_EVENT_NAME = "coldStorageContentAvailable";
+
+    public static final String COLD_STORAGE_CONTENT_AVAILABLE_NOTIFICATION_NAME = "ColdStorageContentAvailable";
+
+    public static final String NUMBER_OF_DAYS_OF_AVAILABILITY_KEY = "numberOfDaysOfAvailability";
+
+    public static final String ARCHIVE_LOCATION_KEY = "archiveLocation";
+
+    /** Used in the mail context to put the unknown information until NXP-28417 will be done **/
+    public static final String TO_DEFINE = "This information needs to be defined";
 
     /**
      * Moves the main content associated with the document of the given {@link DocumentRef} to a cold storage.
@@ -146,7 +155,14 @@ public class ColdStorageHelper {
             if (isColdStorageContentAvailable(doc)) {
                 available++;
                 beingRetrieved--;
+                doc.setPropertyValue(COLD_STORAGE_BEING_RETRIEVED_PROPERTY, false);
+                session.saveDocument(doc);
                 DocumentEventContext ctx = new DocumentEventContext(session, session.getPrincipal(), doc);
+                var properties = new HashMap<String, Serializable>();
+                // TODO: should be reworked, once the NXP-28417 is done
+                properties.put(NUMBER_OF_DAYS_OF_AVAILABILITY_KEY, TO_DEFINE);
+                properties.put(ARCHIVE_LOCATION_KEY, TO_DEFINE);
+                ctx.setProperties(properties);
                 Event event = ctx.newEvent(COLD_STORAGE_CONTENT_AVAILABLE_EVENT_NAME);
                 eventService.fireEvent(event);
             }
