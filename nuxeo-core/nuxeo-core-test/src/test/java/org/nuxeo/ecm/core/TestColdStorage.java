@@ -19,13 +19,8 @@
 
 package org.nuxeo.ecm.core;
 
-import static javax.servlet.http.HttpServletResponse.SC_CONFLICT;
-import static javax.servlet.http.HttpServletResponse.SC_NOT_FOUND;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static javax.servlet.http.HttpServletResponse.*;
+import static org.junit.Assert.*;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -34,11 +29,7 @@ import javax.inject.Inject;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.nuxeo.ecm.core.api.Blob;
-import org.nuxeo.ecm.core.api.Blobs;
-import org.nuxeo.ecm.core.api.CoreSession;
-import org.nuxeo.ecm.core.api.DocumentModel;
-import org.nuxeo.ecm.core.api.NuxeoException;
+import org.nuxeo.ecm.core.api.*;
 import org.nuxeo.ecm.core.blob.ColdStorageHelper;
 import org.nuxeo.ecm.core.schema.FacetNames;
 import org.nuxeo.ecm.core.test.CoreFeature;
@@ -54,6 +45,8 @@ import org.nuxeo.runtime.test.runner.TransactionalFeature;
 public class TestColdStorage {
 
     protected static final String FILE_CONTENT = "foo";
+
+    protected static final int NUMBER_OF_DAYS_OF_AVAILABILITY = 5;
 
     @Inject
     protected CoreSession session;
@@ -105,6 +98,61 @@ public class TestColdStorage {
         } catch (NuxeoException ne) {
             assertEquals(SC_NOT_FOUND, ne.getStatusCode());
             assertEquals(String.format("There is no main content for document: %s.", documentModel), ne.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldRequestRetrievalDocumentBlobFromColdStorage() {
+        DocumentModel documentModel = createDocument(true);
+
+        // move the blob to cold storage
+        ColdStorageHelper.moveContentToColdStorage(session, documentModel.getRef());
+
+        // request a retrieval from the cold storage content
+        documentModel = ColdStorageHelper.requestRetrievalFromColdStorage(session, documentModel.getRef(),
+                NUMBER_OF_DAYS_OF_AVAILABILITY);
+        transactionalFeature.nextTransaction();
+        documentModel.refresh();
+
+        assertTrue(Boolean.TRUE.equals(
+                documentModel.getPropertyValue(ColdStorageHelper.COLD_STORAGE_BEING_RETRIEVED_PROPERTY)));
+    }
+
+    @Test
+    public void shouldFailWhenRequestRetrievalDocumentBlobFromColdStorageBeingRetrieved() {
+        DocumentModel documentModel = createDocument(true);
+
+        // move the blob to cold storage
+        ColdStorageHelper.moveContentToColdStorage(session, documentModel.getRef());
+
+        // request a retrieval from the cold storage content
+        documentModel = ColdStorageHelper.requestRetrievalFromColdStorage(session, documentModel.getRef(),
+                NUMBER_OF_DAYS_OF_AVAILABILITY);
+
+        // try to request a retrieval for a second time
+        try {
+            ColdStorageHelper.requestRetrievalFromColdStorage(session, documentModel.getRef(),
+                    NUMBER_OF_DAYS_OF_AVAILABILITY);
+            fail("Should fail because the cold storage content is being retrieved.");
+        } catch (NuxeoException ne) {
+            assertEquals(SC_FORBIDDEN, ne.getStatusCode());
+            assertEquals(String.format("The cold storage content associated with the document: %s is being retrieved.",
+                    documentModel), ne.getMessage());
+        }
+    }
+
+    @Test
+    public void shouldFailWheRequestRetrievalDocumentBlobWithoutColdStorageContent() {
+        DocumentModel documentModel = createDocument(true);
+        try {
+            // try a request retrieval from the cold storage content where the blob is not stored in it
+            ColdStorageHelper.requestRetrievalFromColdStorage(session, documentModel.getRef(),
+                    NUMBER_OF_DAYS_OF_AVAILABILITY);
+            fail("Should fail because there no cold storage content associated to this document.");
+        } catch (NuxeoException ne) {
+            assertEquals(SC_NOT_FOUND, ne.getStatusCode());
+            assertEquals(String.format("No cold storage content defined for document: %s.", documentModel),
+                    ne.getMessage());
         }
     }
 
