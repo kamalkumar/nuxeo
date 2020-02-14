@@ -20,8 +20,8 @@
 dockerNamespace = 'nuxeo'
 repositoryUrl = 'https://github.com/nuxeo/nuxeo'
 testEnvironments= [
-  'dev',
-  'mongodb',
+  // 'dev',
+  // 'mongodb',
   'postgresql',
 ]
 
@@ -154,7 +154,12 @@ def buildUnitTestStage(env) {
             } else {
               sh "cp ci/mvn/nuxeo-test-${env}.properties ${HOME}/nuxeo-test-${env}.properties"
             }
-            sh "mvn -B -nsu -Dcustom.environment=${env} -Duser.home=${HOME} -Dnuxeo.test.redis.host=${redisHost} test"
+            // sh "mvn -B -nsu -Dcustom.environment=${env} -Duser.home=${HOME} -Dnuxeo.test.redis.host=${redisHost} test"
+            sh """
+              mvn -B -nsu -Dcustom.environment=${env} -Duser.home=${HOME} -Dnuxeo.test.redis.host=${redisHost} \
+                -pl=nuxeo-core/nuxeo-core-storage-sql/nuxeo-core-storage-sql-test -am -DfailIfNoTests=false -Dtest=TestSQLBackendSequenceId \
+                test
+            """
 
             setGitHubBuildStatus("platform/utests/${env}", "Unit tests - ${env} environment", 'SUCCESS')
           } catch(err) {
