@@ -16,11 +16,9 @@
  * Contributors:
  *     Antoine Taillefer <ataillefer@nuxeo.com>
  */
-package org.nuxeo.ecm.core.storage.sql;
+package org.nuxeo.runtime.test.runner;
 
 import org.junit.AssumptionViolatedException;
-import org.nuxeo.runtime.test.runner.FeaturesRunner;
-import org.nuxeo.runtime.test.runner.RunnerFeature;
 
 /**
  * Allows to ignore all the tests from a class running this feature if the database configured for tests is not H2.
@@ -29,9 +27,18 @@ import org.nuxeo.runtime.test.runner.RunnerFeature;
  */
 public class H2OnlyFeature implements RunnerFeature {
 
+    public static final String DB_PROPERTY = "nuxeo.test.vcs.db";
+
+    public static final String DB_DEFAULT = "H2";
+
+    /**
+     * Considers we are using H2 if the {@value #DB_PROPERTY} property is either {@value #DB_DEFAULT} or {@code null},
+     * which is the case of the runtime or any test not loading the {@link DatabaseHelper}.
+     */
     @Override
     public void start(FeaturesRunner runner) {
-        if (DatabaseHelper.DATABASE instanceof DatabaseH2) {
+        String vcsDB = System.getProperty(DB_PROPERTY);
+        if (vcsDB == null || DB_DEFAULT.equals(vcsDB)) {
             return;
         }
         throw new AssumptionViolatedException("Database is not H2");
