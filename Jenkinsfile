@@ -148,7 +148,7 @@ def buildUnitTestStage(env) {
             // - loading some backend-specific system properties
             if (!isDev) {
               sh """
-                CHART_RELEASE=${env} SERVICE=${env} NAMESPACE=${testNamespace} DOMAIN=${TEST_SERVICE_DOMAIN_SUFFIX} \
+                SERVICE=${env} NAMESPACE=${testNamespace} DOMAIN=${TEST_SERVICE_DOMAIN_SUFFIX} \
                   envsubst < ci/mvn/nuxeo-test-${env}.properties > ${HOME}/nuxeo-test-${env}.properties
               """
             } else {
